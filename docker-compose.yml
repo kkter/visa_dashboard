@@ -1,0 +1,24 @@
+
+
+services:
+  web:
+    build: .
+    container_name: visa_dashboard_app
+    restart: always
+    # 将容器的 8000 端口映射到宿主机的 5000 端口
+    # 这样您可以通过 http://<服务器IP>:5000 访问
+    ports:
+      - "5000:8000"
+    volumes:
+      # 我们只挂载需要持久化的数据目录
+      - ./data:/app/data
+    command: ["gunicorn", "--workers", "1", "--bind", "0.0.0.0:8000", "visa_dashboard:app"]
+    # 将服务连接到下面定义的 app_network
+    networks:
+      - app_network
+
+# 定义一个顶层网络
+networks:
+  app_network:
+    name: app_network
+    driver: bridge

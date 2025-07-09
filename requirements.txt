@@ -1,0 +1,6 @@
+Flask
+gunicorn
+pandas
+pdfplumber
+requests
+beautifulsoup4
