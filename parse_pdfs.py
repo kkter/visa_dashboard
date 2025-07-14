@@ -39,41 +39,71 @@ def setup_database():
     return conn
 
 def parse_date_range_from_filename(filename):
-    """从文件名中解析日期范围"""
+    """
+    从文件名中解析日期范围，增强对不规范文件名的处理能力。
+    - 移除日期中的序数词后缀 (st, nd, rd, th)。
+    - 匹配多种分隔符和格式。
+    - 自动处理跨年份的日期范围 (例如 12月到1月)。
+    """
     try:
-        name_without_ext = filename.replace('.pdf', '')
+        name_without_ext = os.path.splitext(filename)[0]
+        # 移除日期中的 "st", "nd", "rd", "th"
+        clean_name = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', name_without_ext)
+
+        # 优先匹配 "DD_Month_to_DD_Month_YYYY" 格式
+        pattern1 = re.compile(
+            r'(\d{1,2})'                     # start_day
+            r'(?:_|-|\s)([A-Za-z]+)'         # start_month
+            r'(?:_|-|\s)to(?:_|-|\s)'         # separator "to"
+            r'(\d{1,2})'                     # end_day
+            r'(?:_|-|\s)([A-Za-z]+)'         # end_month
+            r'(?:_|-|\s)(\d{4})'             # year
+        )
         
-        patterns = [
-            r'(\d{1,2})_([A-Za-z]+)_to_(\d{1,2})_([A-Za-z]+)_(\d{4})',
-            r'(\d{1,2})_to_(\d{1,2})_([A-Za-z]+)_(\d{4})'
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, name_without_ext)
+        # 次优匹配 "DD_to_DD_Month_YYYY" 格式
+        pattern2 = re.compile(
+            r'(\d{1,2})'                     # start_day
+            r'(?:_|-|\s)to(?:_|-|\s)'         # separator "to"
+            r'(\d{1,2})'                     # end_day
+            r'(?:_|-|\s)([A-Za-z]+)'         # end_month
+            r'(?:_|-|\s)(\d{4})'             # year
+        )
+
+        # 首先尝试匹配完整格式
+        match = pattern1.search(clean_name)
+        if match:
+            start_day, start_month, end_day, end_month, year_str = match.groups()
+        else:
+            # 尝试匹配简化格式
+            match = pattern2.search(clean_name)
             if match:
-                groups = match.groups()
-                
-                try:
-                    if len(groups) == 5:
-                        start_day, start_month, end_day, end_month, year = groups
-                        start_date_str = f"{start_day} {start_month} {year}"
-                        end_date_str = f"{end_day} {end_month} {year}"
-                    elif len(groups) == 4:
-                        start_day, end_day, month, year = groups
-                        start_date_str = f"{start_day} {month} {year}"
-                        end_date_str = f"{end_day} {month} {year}"
-                    
-                    start_date = datetime.strptime(start_date_str, "%d %B %Y").date()
-                    end_date = datetime.strptime(end_date_str, "%d %B %Y").date()
-                    
-                    return start_date, end_date
-                        
-                except ValueError:
-                    continue
+                start_day, end_day, end_month, year_str = match.groups()
+                start_month = end_month  # 如果开始月份未提供，则使用结束月份
+            else:
+                # 如果都没有匹配到，记录警告并返回 None
+                print(f"警告: 无法从文件名 '{filename}' 中解析日期。")
+                return None, None
+
+        if match:
+
+            year = int(year_str)
+
+            # 解析开始和结束日期
+            start_date_str = f"{start_day} {start_month} {year}"
+            end_date_str = f"{end_day} {end_month} {year}"
+            
+            start_date = datetime.strptime(start_date_str, "%d %B %Y").date()
+            end_date = datetime.strptime(end_date_str, "%d %B %Y").date()
+
+            # 处理跨年份的情况 (例如，从12月到1月)
+            if start_date > end_date:
+                # 假设结束日期在下一年
+                end_date = datetime.strptime(f"{end_day} {end_month} {year + 1}", "%d %B %Y").date()
+
+            return start_date, end_date
         
-        return None, None
-        
-    except Exception:
+    except Exception as e:
+        print(f"错误: 解析文件名 '{filename}' 时发生异常: {e}")
         return None, None
 
 def sort_files_by_date(pdf_files):
