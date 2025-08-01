@@ -76,13 +76,22 @@ def download_visa_pdfs():
 
         if new_files_downloaded == 0:
             print("\n没有需要下载的新文件。")
+            # 返回2表示没有新文件
+            return 2
         else:
             print(f"\n下载完成。共下载了 {new_files_downloaded} 个新文件。")
+            # 返回0表示成功下载
+            return 0
 
     except requests.exceptions.RequestException as e:
         print(f"访问网页时出错: {e}")
+        return 1
     except Exception as e:
         print(f"发生未知错误: {e}")
+        return 1
 
 if __name__ == "__main__":
-    download_visa_pdfs()
+    # 获取脚本的退出码
+    exit_code = download_visa_pdfs()
+    # 退出程序并返回获取的退出码
+    exit(exit_code)

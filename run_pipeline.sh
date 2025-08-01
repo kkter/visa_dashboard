@@ -19,11 +19,11 @@ echo "[$(date)] 开始为 Week ${CURRENT_WEEK} 执行更新任务..."
 cd ${APP_DIR}
 
 # 2. 运行下载脚本
-# 假设 download_visas.py 在成功下载后返回 exit code 0
 python3 download_visas.py
 DOWNLOAD_STATUS=$?
 
 # 3. 检查下载结果
+# 退出码 0: 成功下载了新文件
 if [ ${DOWNLOAD_STATUS} -eq 0 ]; then
     echo "[$(date)] 数据下载成功。开始执行解析..."
     
@@ -40,8 +40,13 @@ if [ ${DOWNLOAD_STATUS} -eq 0 ]; then
         echo "[$(date)] 错误：数据解析失败！"
         exit 1
     fi
-else
+# 退出码 2: 未发现新文件
+elif [ ${DOWNLOAD_STATUS} -eq 2 ]; then
     echo "[$(date)] 未发现新数据，本次不执行解析。"
+# 其他退出码: 下载过程发生错误
+else
+    echo "[$(date)] 错误：数据下载失败！"
+    exit 1
 fi
 
 echo "[$(date)] 任务执行完毕。"
